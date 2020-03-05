@@ -21,7 +21,7 @@ router.post('/users/login', async (req, res) => {
         
         res.send({ user, token });
     } catch(e) {
-        res.status(500).send('Undefined yet' + e)
+        res.status(500).send(e)
     }
 });
 
@@ -62,32 +62,29 @@ router.get('/users/:id', async (req, res) => {
     }
 })
 
-router.patch('/users/:id', async (req, res) => {
+router.patch('/users/me', auth, async (req, res) => {
     const updates = Object.keys(req.body);
-    const allowedUpdates = ['userName', 'password'];
+    const allowedUpdates = ['name', 'email', 'password'];
     const isValidOperation = updates.every((update) => allowedUpdates.includes(update));
 
     if (!isValidOperation) return res.status(400).send({error: 'Invalid updates'})
 
     try {
-        const user = await User.findById(req.params.id);
+        updates.forEach((update) => req.user[update] = req.body[update])
+        await req.user.save();
         
-        updates.forEach((update) => user[update] = req.body[update])
-        await user.save();
-        
-        res.send(user);
+        res.send(req.user);
     } catch(e) {
-        if (e.name === 'CastError') return res.status(404).send('User not found');
         res.status(400).send(e);
     }
 })
 
-router.delete('/users/:id', async (req, res) => {
+router.delete('/users/me', auth, async (req, res) => {
     try {
-        const user = await User.findByIdAndDelete(req.params.id)
-        res.send(user)
+        // await User.findByIdAndDelete(req.user._id)
+        await req.user.remove();
+        res.send('Your profile was successfully deleted')
     } catch(e) {
-        if (e.name === 'CastError') return res.status(404).send('User not found');
         res.status(500).send(e)
     }
 })

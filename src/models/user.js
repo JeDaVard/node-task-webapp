@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const userSchema = new mongoose.Schema({
-    userName: {
+    name: {
         type: String,
         trim: true,
         required: true
@@ -53,9 +53,18 @@ userSchema.methods.authToken = async function() {
      const isMatchedPass = await bcrypt.compare(password, user.password);
      if (!isMatchedPass) throw new Error('Incorrect password');
 
-     return user
+     return user;
  }
  
+ userSchema.methods.toJSON = function() {
+     const {name, email} = this.toObject();
+
+    return {
+        name,
+        email
+    }
+ }
+
 userSchema.pre('save', async function(next) {
     const user = this;
     
