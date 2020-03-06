@@ -3,7 +3,7 @@ const Task = require('../models/task');
 const auth = require('../middleware/auth');
 const router = new express.Router();
 
-router.post('/tasks', auth, async (req, res) => {
+router.post('/user/task', auth, async (req, res) => {
     const task = new Task({
         ...req.body,
         author: req.user._id
@@ -17,9 +17,27 @@ router.post('/tasks', auth, async (req, res) => {
     }
 })
 
-router.get('/users/me/tasks', auth, async (req, res) => {
+router.get('/me/tasks', auth, async (req, res) => {
+    const match = {};
+    const sort ={};
+
+    if (req.query.complated) {
+        match.complated = req.query.complated === 'true'
+    }
+    if (req.query.sort) {
+        const parts = req.query.sort.split('-');
+        sort[parts[0]] = parts[1] === 'desc' ? -1 : 1;
+    }
     try {
-        await req.user.populate('myTasks').execPopulate()
+        await req.user.populate({
+            path: 'myTasks',
+            match,
+            options: {
+                limit: parseInt(req.query.limit),
+                skip: parseInt(req.query.skip),
+                sort,
+            }
+        }).execPopulate()
         res.send(req.user.myTasks);
     } catch (e) {
         res.status(500).send()
@@ -27,9 +45,21 @@ router.get('/users/me/tasks', auth, async (req, res) => {
 })
 
 router.get('/tasks', async (req, res) => {
+    const sort ={};
+    if (req.query.sort) {
+        const parts = req.query.sort.split('-');
+        sort[parts[0]] = parts[1] === 'desc' ? -1 : 1;
+    }
     try {
-        const task = await Task.find({});
-        res.send(task);
+        const tasks = await Task.find(
+            {},
+            null,
+            {
+                limit: parseInt(req.query.limit),
+                skip: parseInt(req.query.skip),
+                sort,
+            });
+        res.send(tasks);
     } catch(e) {
         res.status(500).send(e)
     }
@@ -47,7 +77,7 @@ router.get('/tasks/:id', auth, async (req, res) => {
     }
 })
 
-router.patch('/users/me/tasks/:id', auth, async (req, res) => {
+router.patch('/me/tasks/:id', auth, async (req, res) => {
     const _id = req.params.id;
     const updates = Object.keys(req.body);
     const allowedUpdates = ['title', 'description', 'complated'];
@@ -68,7 +98,7 @@ router.patch('/users/me/tasks/:id', auth, async (req, res) => {
     }
 })
 
-router.delete('/tasks/:id', auth, async (req, res) => {
+router.delete('/me/tasks/:id', auth, async (req, res) => {
     const _id = req.params.id;
 
     try {

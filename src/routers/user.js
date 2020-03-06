@@ -3,7 +3,7 @@ const User = require('../models/user');
 const auth = require('../middleware/auth');
 const router = new express.Router();
 
-router.post('/users', async (req, res) => {
+router.post('/me', async (req, res) => {
     const user = new User(req.body);
 
     try {
@@ -15,7 +15,7 @@ router.post('/users', async (req, res) => {
     }
 });
 
-router.post('/users/login', async (req, res) => {
+router.post('/login', async (req, res) => {
     try {
         const user = await User.findByCredentials(req.body.email, req.body.password);
         const token = await user.authToken();
@@ -26,7 +26,7 @@ router.post('/users/login', async (req, res) => {
     }
 });
 
-router.post('/users/logout', auth, async (req, res) => {
+router.post('/logout', auth, async (req, res) => {
     try {
         req.user.tokens = req.user.tokens.filter( token => token.token !== req.token );
         await req.user.save();
@@ -37,7 +37,7 @@ router.post('/users/logout', auth, async (req, res) => {
     }
 });
 
-router.post('/users/logoutall', auth, async (req, res) => {
+router.post('/logoutall', auth, async (req, res) => {
     try {
         req.user.tokens = [];
         await req.user.save();
@@ -48,9 +48,24 @@ router.post('/users/logoutall', auth, async (req, res) => {
     }
 });
 
-router.get('/users/me', auth, async (req, res) => {
+router.get('/me', auth, async (req, res) => {
     res.send(req.user);
-})
+});
+
+router.get('/users', async (req, res) => {
+    try {
+        const users = await User.find(
+            {},
+            null,
+            {
+                limit: parseInt(req.query.limit),
+                skip: parseInt(req.query.skip)
+            });
+        res.send(users);
+    } catch(e) {
+        res.status(500).send(e)
+    }
+});
 
 router.get('/users/:id', async (req, res) => {
     const _id = req.params.id;
@@ -61,9 +76,9 @@ router.get('/users/:id', async (req, res) => {
         if (e.name === 'CastError') return res.status(404).send('User not found');
         res.status(500).send(e)
     }
-})
+});
 
-router.patch('/users/me', auth, async (req, res) => {
+router.patch('/me', auth, async (req, res) => {
     const updates = Object.keys(req.body);
     const allowedUpdates = ['name', 'email', 'password'];
     const isValidOperation = updates.every((update) => allowedUpdates.includes(update));
@@ -80,7 +95,7 @@ router.patch('/users/me', auth, async (req, res) => {
     }
 })
 
-router.delete('/users/me', auth, async (req, res) => {
+router.delete('/me', auth, async (req, res) => {
     try {
         // await User.findByIdAndDelete(req.user._id)
         await req.user.remove();
