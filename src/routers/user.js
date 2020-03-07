@@ -3,17 +3,21 @@ const User = require('../models/user');
 const auth = require('../middleware/auth');
 const multer = require('multer');
 const sharp = require('sharp');
+const { sendWelcomeEmail, sendByeEmail } = require('../emails/account');
 const router = new express.Router();
 
 router.post('/me', async (req, res) => {
     const user = new User(req.body);
 
     try {
-        const token = await user.authToken();
+        await user.save();
         
+        sendWelcomeEmail(user.email, user.name);
+        const token = await user.authToken();
+
         res.status(201).send({ user, token })
     } catch(e) {
-        res.status(400).send(e)
+        res.status(400).send({error: `something went wrong (${e})`})
     }
 });
 
@@ -99,11 +103,13 @@ router.patch('/me', auth, async (req, res) => {
 
 router.delete('/me', auth, async (req, res) => {
     try {
-        // await User.findByIdAndDelete(req.user._id)
         await req.user.remove();
-        res.send('Your profile was successfully deleted')
+
+        sendByeEmail(req.user.email, req.user.name);
+        
+        res.send('Your profile was successfully deleted');
     } catch(e) {
-        res.status(500).send(e)
+        res.status(500).send(e);
     }
 });
 
